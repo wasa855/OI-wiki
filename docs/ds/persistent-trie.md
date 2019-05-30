@@ -16,71 +16,102 @@
 
 查询区间，只需要利用前缀和和差分的思想，用两棵前缀 Trie 树（也就是按顺序添加数的两个历史版本）相减即为该区间的线段树。再利用动态开点的思想，不添加没有计算过的点，以减少空间占用。
 
+同时，因为取到的最大值可能是当 $l=1$ 时，此时 $l-1=0$ ，所以应事先加入这个节点。
+
 ```cpp
-#include <algorithm>
-#include <cstdio>
-#include <cstring>
+#include<bits/stdc++.h>
 using namespace std;
-const int maxn = 600010;
-int n, q, a[maxn], s[maxn], l, r, x;
-char op;
-struct Trie {
-  int cnt, rt[maxn], ch[maxn * 33][2], val[maxn * 33];
-  void insert(int o, int lst, int v) {
-    for (int i = 28; i >= 0; i--) {
-      val[o] = val[lst] + 1;  //在原版本的基础上更新
-      if ((v & (1 << i)) == 0) {
-        if (!ch[o][0]) ch[o][0] = ++cnt;
-        ch[o][1] = ch[lst][1];
-        o = ch[o][0];
-        lst = ch[lst][0];
-      } else {
-        if (!ch[o][1]) ch[o][1] = ++cnt;
-        ch[o][0] = ch[lst][0];
-        o = ch[o][1];
-        lst = ch[lst][1];
-      }
+inline int read()
+{
+    char ch=getchar();
+    while(!isdigit(ch)) ch=getchar();
+    int ans=0;
+    while(isdigit(ch))
+    {
+        ans=ans*10+ch-48;
+        ch=getchar();
     }
-    val[o] = val[lst] + 1;
-    // printf("%d\n",o);
-  }
-  int query(int o1, int o2, int v) {
-    int ret = 0;
-    for (int i = 28; i >= 0; i--) {
-      // printf("%d %d %d\n",o1,o2,val[o1]-val[o2]);
-      int t = ((v & (1 << i)) ? 1 : 0);
-      if (val[ch[o1][!t]] - val[ch[o2][!t]])
-        ret += (1 << i), o1 = ch[o1][!t], o2 = ch[o2][!t];  //尽量向不同的地方跳
-      else
-        o1 = ch[o1][t], o2 = ch[o2][t];
+    return ans;
+}
+#define N 300005
+struct Trie
+{
+    struct Node
+    {
+        int ch[2];
+        int siz;
+    };
+    Node t[N*48];
+    int ncnt;
+    int rcnt,rot[N*2];
+    void insert(int x,int rt)
+    {
+        rt=rot[rt];
+        int cur=rot[++rcnt]=++ncnt;
+        for(int i=24;i>=0;i--)
+        {
+            int tmp=(x>>i)&1;
+            t[cur].ch[tmp]=++ncnt;
+            t[cur].ch[tmp^1]=t[rt].ch[tmp^1];
+            t[cur].siz=t[rt].siz+1;
+            cur=t[cur].ch[tmp];
+            rt=t[rt].ch[tmp];
+        }
+        t[cur].siz=t[rt].siz+1;
     }
-    return ret;
-  }
-} st;
-int main() {
-  scanf("%d%d", &n, &q);
-  for (int i = 1; i <= n; i++) scanf("%d", a + i), s[i] = s[i - 1] ^ a[i];
-  for (int i = 1; i <= n; i++)
-    st.rt[i] = ++st.cnt, st.insert(st.rt[i], st.rt[i - 1], s[i]);
-  while (q--) {
-    scanf(" %c", &op);
-    if (op == 'A') {
-      n++;
-      scanf("%d", a + n);
-      s[n] = s[n - 1] ^ a[n];
-      st.rt[n] = ++st.cnt;
-      st.insert(st.rt[n], st.rt[n - 1], s[n]);
+    int query(int x,int l,int r)
+    {
+//		printf("%d %d %d\n",x,l,r);
+        int ans=0;
+        int rtl=rot[l-1];
+        int rtr=rot[r];
+        for(int i=24;i>=0;i--)
+        {
+            int tmp=(x>>i)&1;
+            if(t[t[rtr].ch[tmp^1]].siz-t[t[rtl].ch[tmp^1]].siz>0)
+            {
+//				printf("** %d",i);
+                ans^=(1<<i);
+                rtr=t[rtr].ch[tmp^1];
+                rtl=t[rtl].ch[tmp^1];
+            }
+            else
+            {
+                rtr=t[rtr].ch[tmp];
+                rtl=t[rtl].ch[tmp];
+            }
+        }
+        return ans;
     }
-    if (op == 'Q') {
-      scanf("%d%d%d", &l, &r, &x);
-      l--;
-      r--;
-      if (l == r && l == 0)
-        printf("%d\n", s[n] ^ x);  //记得处理 l=r=1 的情况
-      else
-        printf("%d\n", st.query(st.rt[r], st.rt[max(l - 1, 0)], x ^ s[n]));
+};
+Trie tr;
+int main()
+{
+    int n,m;
+    cin>>n>>m;
+    int x=0;
+    tr.insert(0,0); //处理最大值当l=1时取到的情况
+    for(int i=1;i<=n;i++)
+    {
+        x^=read();
+        tr.insert(x,i);
     }
-  }
-  return 0;
+    char opt[3];
+    for(int i=1;i<=m;i++)
+    {
+        scanf("%s",&opt);
+        if(opt[0]=='A')
+        {
+            x^=read();
+            tr.insert(x,tr.rcnt);
+        }
+        else
+        {
+            int l,r,xx;
+            l=read(),r=read(),xx=read();
+            printf("%d\n",tr.query(xx^x,l,r));
+        }
+    }
+    return 0;
 }
 ```
